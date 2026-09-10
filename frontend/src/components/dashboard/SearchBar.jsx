@@ -19,13 +19,12 @@ const SearchBar = ({ villages, onSelectVillage }) => {
       style={{
         position: "relative",
         width: "100%",
-        background: "rgba(255, 255, 255, 0.95)",
-        backdropFilter: "blur(8px)",
-        padding: "3px",
-        borderRadius: "8px",
-        boxShadow: "0 2px 10px rgba(0, 0, 0, 0.2)",
-        border: "1px solid rgba(226, 232, 240, 0.8)",
-        zIndex: 9999,
+        background: "#f8fafc",
+        borderRadius: "6px",
+        border: "1px solid #cbd5e1",
+        display: "flex",
+        alignItems: "center",
+        zIndex: 100,
       }}
     >
       <input
@@ -36,15 +35,33 @@ const SearchBar = ({ villages, onSelectVillage }) => {
         style={{
           width: "100%",
           boxSizing: "border-box",
-          padding: "7px 10px",
+          padding: "6px 10px",
           border: "none",
           outline: "none",
           borderRadius: "6px",
-          fontSize: "12px",
+          fontSize: "11.5px",
           background: "transparent",
-          color: "#1e293b",
+          color: "#0f172a",
+          fontWeight: "500",
         }}
       />
+      {query && (
+        <button
+          onClick={() => setQuery("")}
+          style={{
+            border: "none",
+            background: "transparent",
+            color: "#94a3b8",
+            cursor: "pointer",
+            fontSize: "12px",
+            padding: "0 8px",
+            lineHeight: 1,
+          }}
+          title="Clear search"
+        >
+          ✕
+        </button>
+      )}
 
       {query && results.length > 0 && (
         <div

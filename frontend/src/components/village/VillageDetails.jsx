@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { relocationSites } from "../../utils/relocationSites";
 import { calculateDistance } from "../../utils/mapHelpers";
+import { generateShelterReasoning } from "../../utils/shelterReasoning";
 
 const VillageDetails = ({
   village,
   onClose,
   onViewOnMap,
+  embedded = false,
 }) => {
   const [decisionState, setDecisionState] = useState(null); // 'APPROVED' | 'OVERRIDDEN'
   const [overrideReason, setOverrideReason] = useState("");
@@ -45,6 +47,7 @@ const VillageDetails = ({
   }, [village?.id]);
 
   if (!village) {
+    if (embedded) return null;
     return (
       <div
         style={{
@@ -90,6 +93,11 @@ const VillageDetails = ({
 
   const recommendedSite = suitableSites.length > 0 ? suitableSites[0] : relocationSites[0];
 
+  // Generate shelter safety reasoning
+  const shelterReasoning = recommendedSite
+    ? generateShelterReasoning(village, recommendedSite)
+    : null;
+
   // -----------------------------
   // RISK COLORS & BREAKDOWN
   // -----------------------------
@@ -124,36 +132,38 @@ const VillageDetails = ({
     <div
       style={{
         background: "#ffffff",
-        border: "1px solid #cbd5e1",
-        borderRadius: "12px",
-        padding: "16px",
-        boxShadow: "0 6px 20px rgba(0, 0, 0, 0.08)",
+        border: embedded ? "none" : "1px solid #cbd5e1",
+        borderRadius: embedded ? "0" : "12px",
+        padding: embedded ? "14px" : "16px",
+        boxShadow: embedded ? "none" : "0 6px 20px rgba(0, 0, 0, 0.08)",
         position: "relative",
         display: "flex",
         flexDirection: "column",
         gap: "10px",
       }}
     >
-      {/* CLOSE BUTTON */}
-      <button
-        onClick={onClose}
-        style={{
-          position: "absolute",
-          top: "12px",
-          right: "12px",
-          border: "none",
-          background: "#f1f5f9",
-          borderRadius: "6px",
-          width: "26px",
-          height: "26px",
-          cursor: "pointer",
-          fontSize: "16px",
-          lineHeight: "1",
-          color: "#475569",
-        }}
-      >
-        ×
-      </button>
+      {/* CLOSE BUTTON — hidden when embedded (parent panel provides one) */}
+      {!embedded && (
+        <button
+          onClick={onClose}
+          style={{
+            position: "absolute",
+            top: "12px",
+            right: "12px",
+            border: "none",
+            background: "#f1f5f9",
+            borderRadius: "6px",
+            width: "26px",
+            height: "26px",
+            cursor: "pointer",
+            fontSize: "16px",
+            lineHeight: "1",
+            color: "#475569",
+          }}
+        >
+          ×
+        </button>
+      )}
 
       {/* HEADER SECTION */}
       <div style={{ paddingRight: "26px" }}>
@@ -321,16 +331,18 @@ const VillageDetails = ({
         </div>
       </div>
 
-      {/* HUNGARIAN RECOMMENDED RELOCATION SITE */}
+      {/* ═══════════════════════════════════════════════════════ */}
+      {/* HUNGARIAN RECOMMENDED RELOCATION SITE + SAFETY REASONING */}
+      {/* ═══════════════════════════════════════════════════════ */}
       <div
         style={{
-          padding: "10px",
+          padding: "12px",
           background: "#f0fdf4",
           border: "1px solid #bbf7d0",
           borderRadius: "8px",
         }}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
           <span style={{ fontSize: "11.5px", color: "#166534", fontWeight: "700" }}>
             🏠 Hungarian Assigned Safe Shelter
           </span>
@@ -341,13 +353,185 @@ const VillageDetails = ({
 
         {recommendedSite ? (
           <>
-            <strong style={{ display: "block", color: "#14532d", fontSize: "12px", marginBottom: "4px" }}>
+            <strong style={{ display: "block", color: "#14532d", fontSize: "12.5px", marginBottom: "4px" }}>
               {recommendedSite.name}
             </strong>
-            <div style={{ fontSize: "10.5px", color: "#15803d", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px", marginBottom: "6px" }}>
-              <div>Distance: <strong>{recommendedSite.distance ? recommendedSite.distance.toFixed(1) : "12.4"} km</strong></div>
-              <div>Buffer Capacity: <strong>{recommendedSite.availableCapacity?.toLocaleString()}</strong></div>
+
+            {/* ── Shelter Stats Grid ── */}
+            <div style={{ 
+              fontSize: "10.5px", 
+              color: "#15803d", 
+              display: "grid", 
+              gridTemplateColumns: "1fr 1fr", 
+              gap: "4px", 
+              marginBottom: "8px",
+              background: "rgba(255,255,255,0.6)",
+              padding: "6px 8px",
+              borderRadius: "6px",
+              border: "1px solid #a7f3d0",
+            }}>
+              <div>📏 Distance: <strong>{recommendedSite.distance ? recommendedSite.distance.toFixed(1) : "12.4"} km</strong></div>
+              <div>👥 Capacity: <strong>{recommendedSite.availableCapacity?.toLocaleString()}</strong></div>
+              <div>🏗️ Type: <strong style={{ fontSize: "9.5px" }}>{shelterReasoning?.terrainType?.split(" (")[0] || "Safe Facility"}</strong></div>
+              <div>⏱️ ETA: <strong>~{shelterReasoning?.routeDuration || "20"} min</strong></div>
             </div>
+
+            {/* ═══════════════════════════════════════════════ */}
+            {/* 🛡️ WHY IS THIS SHELTER SAFE? — Reasoning Panel */}
+            {/* ═══════════════════════════════════════════════ */}
+            {shelterReasoning && (
+              <div style={{
+                background: "#ffffff",
+                border: "1px solid #86efac",
+                borderRadius: "8px",
+                padding: "10px",
+                marginBottom: "8px",
+              }}>
+                {/* Section Title */}
+                <div style={{ 
+                  display: "flex", 
+                  alignItems: "center", 
+                  gap: "5px", 
+                  marginBottom: "8px",
+                  paddingBottom: "6px",
+                  borderBottom: "1px dashed #bbf7d0",
+                }}>
+                  <span style={{ fontSize: "13px" }}>🛡️</span>
+                  <span style={{ fontSize: "11px", fontWeight: "800", color: "#14532d", letterSpacing: "0.3px" }}>
+                    WHY IS THIS SHELTER SAFE?
+                  </span>
+                </div>
+
+                {/* ── Elevation / Terrain Comparison Box ── */}
+                {shelterReasoning.comparisonData && (
+                  <div style={{
+                    background: "#f8fafc",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "6px",
+                    padding: "8px 10px",
+                    marginBottom: "8px",
+                    fontSize: "10.5px",
+                  }}>
+                    {/* Danger vs Safe comparison */}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
+                      {/* Danger Zone */}
+                      <div style={{
+                        background: "#fef2f2",
+                        border: "1px solid #fecaca",
+                        borderRadius: "5px",
+                        padding: "6px 8px",
+                        textAlign: "center",
+                      }}>
+                        <div style={{ fontSize: "15px", marginBottom: "2px" }}>🔴</div>
+                        <div style={{ fontSize: "9px", color: "#991b1b", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.3px" }}>
+                          {shelterReasoning.comparisonData.dangerLabel}
+                        </div>
+                        <div style={{ fontSize: "12px", fontWeight: "800", color: "#dc2626", marginTop: "1px" }}>
+                          {shelterReasoning.comparisonData.dangerValue}
+                        </div>
+                      </div>
+
+                      {/* Safe Shelter */}
+                      <div style={{
+                        background: "#f0fdf4",
+                        border: "1px solid #bbf7d0",
+                        borderRadius: "5px",
+                        padding: "6px 8px",
+                        textAlign: "center",
+                      }}>
+                        <div style={{ fontSize: "15px", marginBottom: "2px" }}>🟢</div>
+                        <div style={{ fontSize: "9px", color: "#166534", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.3px" }}>
+                          {shelterReasoning.comparisonData.safeLabel}
+                        </div>
+                        <div style={{ fontSize: "12px", fontWeight: "800", color: "#059669", marginTop: "1px" }}>
+                          {shelterReasoning.comparisonData.safeValue}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Delta indicator */}
+                    <div style={{
+                      display: "flex",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      gap: "8px",
+                      marginTop: "6px",
+                      padding: "4px 8px",
+                      background: shelterReasoning.comparisonData.deltaColor === "#059669" ? "#ecfdf5" : "#fef2f2",
+                      borderRadius: "4px",
+                      border: `1px solid ${shelterReasoning.comparisonData.deltaColor}22`,
+                    }}>
+                      <span style={{ fontSize: "10px", fontWeight: "700", color: "#475569" }}>
+                        {shelterReasoning.comparisonData.deltaLabel}:
+                      </span>
+                      <span style={{ fontSize: "11px", fontWeight: "800", color: shelterReasoning.comparisonData.deltaColor }}>
+                        {shelterReasoning.comparisonData.deltaValue}
+                      </span>
+                    </div>
+
+                    {/* Extra info (e.g., flood depth) */}
+                    {shelterReasoning.comparisonData.extraLabel && (
+                      <div style={{
+                        display: "flex",
+                        justifyContent: "center",
+                        alignItems: "center",
+                        gap: "8px",
+                        marginTop: "4px",
+                        padding: "3px 8px",
+                        background: "#fffbeb",
+                        borderRadius: "4px",
+                        border: "1px solid #fde68a",
+                      }}>
+                        <span style={{ fontSize: "10px", fontWeight: "700", color: "#92400e" }}>
+                          {shelterReasoning.comparisonData.extraLabel}:
+                        </span>
+                        <span style={{ fontSize: "11px", fontWeight: "800", color: "#d97706" }}>
+                          {shelterReasoning.comparisonData.extraValue}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ── Safety Verdict ── */}
+                <div style={{
+                  padding: "6px 8px",
+                  background: shelterReasoning.safetyVerdict.startsWith("✅") ? "#ecfdf5" : "#fffbeb",
+                  border: `1px solid ${shelterReasoning.safetyVerdict.startsWith("✅") ? "#a7f3d0" : "#fde68a"}`,
+                  borderRadius: "5px",
+                  fontSize: "10.5px",
+                  fontWeight: "700",
+                  color: shelterReasoning.safetyVerdict.startsWith("✅") ? "#065f46" : "#92400e",
+                  marginBottom: "6px",
+                  lineHeight: "1.3",
+                }}>
+                  {shelterReasoning.safetyVerdict}
+                </div>
+
+                {/* ── Reasoning Points ── */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+                  {shelterReasoning.reasons.map((reason, idx) => (
+                    <div key={idx} style={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      gap: "5px",
+                      fontSize: "10px",
+                      color: "#334155",
+                      lineHeight: "1.35",
+                    }}>
+                      <span style={{ 
+                        color: "#059669", 
+                        fontWeight: "800", 
+                        fontSize: "8px",
+                        marginTop: "2px",
+                        flexShrink: 0,
+                      }}>▸</span>
+                      <span>{reason}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <button
               onClick={() =>
@@ -358,17 +542,22 @@ const VillageDetails = ({
               }
               style={{
                 width: "100%",
-                padding: "6px",
+                padding: "7px",
                 border: "none",
-                borderRadius: "5px",
-                background: "#16a34a",
+                borderRadius: "6px",
+                background: "linear-gradient(135deg, #16a34a, #15803d)",
                 color: "#ffffff",
                 cursor: "pointer",
-                fontWeight: "600",
+                fontWeight: "700",
                 fontSize: "11px",
+                boxShadow: "0 2px 6px rgba(22, 163, 74, 0.3)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "5px",
               }}
             >
-              📍 Plot Safe Evacuation Route
+              📍 Plot Safe Evacuation Route on Map
             </button>
           </>
         ) : (

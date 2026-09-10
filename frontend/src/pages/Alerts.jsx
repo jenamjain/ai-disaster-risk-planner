@@ -11,10 +11,36 @@ import {
 } from "../services/api";
 
 
+const getHazardIcon = (hType) => {
+  const h = String(hType || "").toLowerCase();
+  if (h.includes("subsidence")) return "⛏️";
+  if (h.includes("surge")) return "🌊";
+  if (h.includes("cyclone")) return "🌀";
+  if (h.includes("flash flood")) return "⚡";
+  if (h.includes("flood")) return "🌊";
+  if (h.includes("landslide")) return "⛰️";
+  if (h.includes("heat")) return "☀️";
+  return "⚠️";
+};
+
+
 const Alerts = () => {
+
+  // CSS keyframes for red blinking LIVE indicator
+  const liveAnimationStyles = `
+    @keyframes alertLivePulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.3; transform: scale(0.7); }
+    }
+    @keyframes alertBadgeGlow {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6); }
+      50% { box-shadow: 0 0 0 5px rgba(239, 68, 68, 0); }
+    }
+  `;
 
   const [villages, setVillages] = useState([]);
   const [hazards, setHazards] = useState([]);
+  const [liveSensorMap, setLiveSensorMap] = useState({});
 
   const [filter, setFilter] = useState("ALL");
   const [loading, setLoading] = useState(true);
@@ -31,10 +57,13 @@ const Alerts = () => {
 
       setLoading(true);
 
-      const [villageData, hazardData] =
+      const [villageData, hazardData, sensorFeedRes] =
         await Promise.all([
           getVillages(),
           getHazardZones(),
+          fetch("http://localhost:8001/api/live-sensor-feed")
+            .then((r) => (r.ok ? r.json() : null))
+            .catch(() => null),
         ]);
 
 
@@ -42,11 +71,17 @@ const Alerts = () => {
         setVillages(villageData);
       }
 
-
       if (Array.isArray(hazardData)) {
         setHazards(hazardData);
       }
 
+      if (sensorFeedRes && Array.isArray(sensorFeedRes.habitations)) {
+        const sMap = {};
+        sensorFeedRes.habitations.forEach((h) => {
+          sMap[h.villageId] = h;
+        });
+        setLiveSensorMap(sMap);
+      }
 
       setLastUpdated(new Date());
 
@@ -190,146 +225,101 @@ const Alerts = () => {
 
     const generated = [];
 
-
     villages.forEach((village, index) => {
 
-      const risk = getRisk(village);
+      const tel = liveSensorMap[village.id];
       const priority = getPriority(village);
-      const score = getScore(village);
       const population = getPopulation(village);
+      const villageName = getName(village);
+      const district = getDistrict(village);
 
-      const villageName =
-        getName(village);
+      // Standardized hazard type from sensor feed or validated village data
+      const hazard = tel?.hazardType || getHazard(village);
 
-      const district =
-        getDistrict(village);
+      // Authentic dynamic score & meteorological alert level
+      const dynamicScore = tel ? tel.dynamicRiskScore : getScore(village);
+      const dynamicRiskLevel = tel?.dynamicRiskLevel || getRisk(village);
+      const imdLevel = tel?.imdAlertLevel || "GREEN";
+      const hasTrigger = tel?.hasActiveMetAlert ?? false;
+      const alertReason = tel?.alertReason;
+      const rawBadge = tel?.alertBadge || "";
+      // Only use sensor alertBadge if it's NOT "NORMAL" — avoids contradictory titles on URGENT/CRITICAL alerts
+      const alertBadge = rawBadge.toUpperCase().includes("NORMAL") || rawBadge.toUpperCase().includes("MONITORED") ? null : rawBadge;
 
-      const hazard =
-        getHazard(village);
-
-
-      // CRITICAL ALERT
-
+      // 1. CRITICAL DISASTER ALERT (Strict Trigger Gating)
+      // Must be backed by IMD RED Alert OR (score >= 75 with active verified meteorological trigger)
       if (
-        risk === "CRITICAL" ||
-        score >= 80
+        imdLevel === "RED" ||
+        (dynamicScore >= 75 && hasTrigger)
       ) {
 
         generated.push({
-
-          id:
-            `critical-${village.id ?? index}`,
-
+          id: `critical-${village.id ?? index}`,
           type: "CRITICAL",
-
-          title:
-            "Critical Disaster Risk",
-
-          message:
-            `${villageName} in ${district} is showing critical risk conditions.`,
-
-          village:
-            villageName,
-
+          title: alertBadge || `🔴 RED ALERT: ${hazard} Warning`,
+          message: alertReason
+            ? `${villageName} in ${district}: ${alertReason}`
+            : `${villageName} in ${district} is under critical disaster threat backed by live sensor thresholds.`,
+          village: villageName,
           district,
-
           hazard,
-
-          score,
-
+          score: dynamicScore,
           population,
-
-          action:
-            "Immediate assessment and evacuation readiness required.",
-
-          time:
-            new Date(),
-
+          telemetry: tel,
+          action: "Immediate tactical evacuation and shelter readiness required. Active threshold breached.",
+          time: new Date(),
         });
 
       }
 
-
-      // IMMEDIATE RELOCATION
-
+      // 2. URGENT / HIGH WATCH (Orange Alert or elevated dynamic trigger)
+      // Requires IMD ORANGE level OR verified active trigger with dynamicScore >= 55
       else if (
-        priority === "IMMEDIATE" ||
-        priority === "URGENT"
+        imdLevel === "ORANGE" ||
+        (dynamicScore >= 55 && hasTrigger)
       ) {
 
         generated.push({
-
-          id:
-            `relocation-${village.id ?? index}`,
-
+          id: `urgent-${village.id ?? index}`,
           type: "URGENT",
-
-          title:
-            "Immediate Relocation Required",
-
-          message:
-            `${villageName} has been marked for immediate relocation planning.`,
-
-          village:
-            villageName,
-
+          title: alertBadge || `🟠 ${hazard} Risk — Elevated Watch`,
+          message: alertReason
+            ? `${villageName} in ${district}: ${alertReason}`
+            : `${villageName} in ${district} has elevated vulnerability and active environmental watch.`,
+          village: villageName,
           district,
-
           hazard,
-
-          score,
-
+          score: dynamicScore,
           population,
-
-          action:
-            "Activate relocation plan and verify nearby shelter capacity.",
-
-          time:
-            new Date(),
-
+          telemetry: tel,
+          action: "Activate relocation contingency and verify nearby shelter capacity.",
+          time: new Date(),
         });
 
       }
 
-
-      // HIGH RISK
-
+      // 3. ACTIVE ENVIRONMENTAL WATCH (Yellow Alert or Critical Physical Telemetry)
+      // Strictly requires IMD YELLOW alert OR extreme physical telemetry (rainfall >= 20mm or soil saturation >= 85%)
       else if (
-        risk === "HIGH" ||
-        risk === "SEVERE" ||
-        score >= 60
+        imdLevel === "YELLOW" ||
+        (tel && (tel.soilSaturationPercent >= 85 || tel.rainfall24hMm >= 20))
       ) {
 
         generated.push({
-
-          id:
-            `high-${village.id ?? index}`,
-
+          id: `high-${village.id ?? index}`,
           type: "HIGH",
-
-          title:
-            "High Risk Detected",
-
-          message:
-            `${villageName} is currently under elevated disaster risk.`,
-
-          village:
-            villageName,
-
+          title: alertBadge || `🟡 ${hazard} — Active Monitoring`,
+          message: alertReason && !alertReason.includes("safe baseline")
+            ? `${villageName} in ${district}: ${alertReason}`
+            : `${villageName} in ${district} is under satellite mesh monitoring (Soil: ${tel?.soilSaturationPercent || 0}%, Rain: ${tel?.rainfall24hMm || 0}mm).`,
+          village: villageName,
           district,
-
           hazard,
-
-          score,
-
+          score: dynamicScore,
           population,
-
-          action:
-            "Increase monitoring frequency and prepare contingency response.",
-
-          time:
-            new Date(),
-
+          telemetry: tel,
+          action: "Maintain continuous sensor mesh observation and review drainage/slope telemetry.",
+          time: new Date(),
         });
 
       }
@@ -424,7 +414,7 @@ const Alerts = () => {
         b.score - a.score
     );
 
-  }, [villages, hazards]);
+  }, [villages, hazards, liveSensorMap]);
 
 
 
@@ -530,18 +520,35 @@ const Alerts = () => {
             </h1>
 
 
-            <span
+            <style>{liveAnimationStyles}</style>
+
+            <div
               style={{
-                background: "#dcfce7",
-                color: "#15803d",
-                padding: "5px 10px",
+                display: "flex",
+                alignItems: "center",
+                gap: "7px",
+                background: "linear-gradient(135deg, #991b1b, #dc2626)",
+                padding: "6px 14px",
                 borderRadius: "20px",
                 fontSize: "11px",
                 fontWeight: 800,
+                animation: "alertBadgeGlow 1.8s ease-in-out infinite",
               }}
             >
-              ● LIVE
-            </span>
+              <span
+                style={{
+                  display: "inline-block",
+                  width: "8px",
+                  height: "8px",
+                  borderRadius: "50%",
+                  background: "#ffffff",
+                  animation: "alertLivePulse 1.2s ease-in-out infinite",
+                }}
+              />
+              <span style={{ color: "#ffffff", letterSpacing: "0.5px" }}>
+                LIVE ALERT
+              </span>
+            </div>
 
           </div>
 
@@ -1268,23 +1275,43 @@ const AlertItem = ({
               />
 
               <InfoChip
-                text={`🌪️ ${alert.hazard}`}
+                text={`${getHazardIcon(alert.hazard)} ${alert.hazard}`}
               />
 
               {alert.score > 0 && (
-
                 <InfoChip
                   text={`Risk ${alert.score.toFixed(1)}`}
                 />
-
               )}
 
               {alert.population > 0 && (
-
                 <InfoChip
                   text={`👥 ${alert.population.toLocaleString()}`}
                 />
+              )}
 
+              {alert.telemetry?.rainfall24hMm != null && alert.telemetry.rainfall24hMm > 0 && (
+                <InfoChip
+                  text={`🌧️ ${alert.telemetry.rainfall24hMm}mm/24h`}
+                />
+              )}
+
+              {alert.telemetry?.soilSaturationPercent != null && (
+                <InfoChip
+                  text={`💧 ${alert.telemetry.soilSaturationPercent}% Soil`}
+                />
+              )}
+
+              {alert.telemetry?.windSpeedKmh != null && alert.telemetry.windSpeedKmh > 12 && (
+                <InfoChip
+                  text={`💨 ${alert.telemetry.windSpeedKmh}km/h`}
+                />
+              )}
+
+              {alert.telemetry?.elevationM != null && (
+                <InfoChip
+                  text={`🏔️ ${Math.round(alert.telemetry.elevationM)}m Elev`}
+                />
               )}
 
             </div>
@@ -1322,15 +1349,32 @@ const AlertItem = ({
 
         <div
           style={{
-            whiteSpace:
-              "nowrap",
-            color:
-              "#94a3b8",
-            fontSize:
-              "11px",
+            display: "flex",
+            alignItems: "center",
+            gap: "5px",
+            whiteSpace: "nowrap",
           }}
         >
-          LIVE
+          <span
+            style={{
+              display: "inline-block",
+              width: "6px",
+              height: "6px",
+              borderRadius: "50%",
+              background: "#ef4444",
+              animation: "alertLivePulse 1.2s ease-in-out infinite",
+            }}
+          />
+          <span
+            style={{
+              color: "#ef4444",
+              fontSize: "10px",
+              fontWeight: 800,
+              letterSpacing: "0.3px",
+            }}
+          >
+            LIVE
+          </span>
         </div>
 
       </div>

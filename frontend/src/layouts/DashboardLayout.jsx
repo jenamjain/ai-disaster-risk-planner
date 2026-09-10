@@ -20,7 +20,7 @@ const DashboardLayout = () => {
         <main
           style={{
             flex: 1,
-            padding: "20px",
+            padding: "12px",
             overflowY: "auto",
             background: "#f8fafc",
           }}

@@ -249,11 +249,11 @@ style={{
 display:"grid",
 
 gridTemplateColumns:
-"repeat(6,minmax(140px,1fr))",
+"repeat(6,minmax(120px,1fr))",
 
-gap:"14px",
+gap:"10px",
 
-marginBottom:"18px"
+marginBottom:"10px"
 
 }}
 
@@ -275,12 +275,12 @@ background:"#fff",
 
 border:"1px solid #e2e8f0",
 
-borderRadius:"16px",
+borderRadius:"12px",
 
-padding:"16px",
+padding:"10px 12px",
 
 boxShadow:
-"0 4px 14px rgba(15,23,42,0.06)"
+"0 2px 8px rgba(15,23,42,0.04)"
 
 }}
 
@@ -307,7 +307,7 @@ alignItems:"center"
 
 style={{
 
-fontSize:"12px",
+fontSize:"11px",
 
 fontWeight:"700",
 
@@ -340,9 +340,9 @@ color={card.color}
 
 style={{
 
-marginTop:"14px",
+marginTop:"6px",
 
-fontSize:"28px",
+fontSize:"22px",
 
 fontWeight:"800",
 
@@ -363,9 +363,9 @@ color:"#0f172a"
 
 style={{
 
-marginTop:"8px",
+marginTop:"4px",
 
-fontSize:"11px",
+fontSize:"9.5px",
 
 color:"#16a34a",
 

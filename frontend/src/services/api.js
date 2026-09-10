@@ -80,6 +80,8 @@ export async function getVillages() {
               ...v,
               riskScore: ml.score || v.riskScore,
               riskLevel: ml.riskLevel || v.riskLevel,
+              hazardType: ml.hazardType || v.hazardType,
+              hazardDetail: ml.hazardDetail || v.hazardDetail,
               dominantFactor: ml.dominantFactor || v.dominantFactor,
               plainEnglishExplanation: ml.plainEnglishExplanation,
               breakdown: ml.breakdown,

@@ -128,20 +128,20 @@ export default function EvacuationRoute({ selectedVillage }) {
     let cancelled = false;
     setLoading(true);
 
+    // Immediately render direct connection so user sees corridor with zero latency
+    setRouteCoords([
+      [selectedVillage.lat, selectedVillage.lng],
+      [matchingSite.lat, matchingSite.lng],
+    ]);
+    const initDist = calculateDistance(selectedVillage.lat, selectedVillage.lng, matchingSite.lat, matchingSite.lng);
+    setRouteInfo({ distanceKm: initDist, durationMin: Math.round(initDist * 1.5) });
+
     fetchOSRMRoute(selectedVillage.lat, selectedVillage.lng, matchingSite.lat, matchingSite.lng)
       .then((result) => {
         if (cancelled) return;
         if (result) {
           setRouteCoords(result.coords);
           setRouteInfo({ distanceKm: result.distanceKm, durationMin: result.durationMin });
-        } else {
-          // Fallback: straight line
-          setRouteCoords([
-            [selectedVillage.lat, selectedVillage.lng],
-            [matchingSite.lat, matchingSite.lng],
-          ]);
-          const d = calculateDistance(selectedVillage.lat, selectedVillage.lng, matchingSite.lat, matchingSite.lng);
-          setRouteInfo({ distanceKm: d, durationMin: Math.round(d * 1.5) });
         }
       })
       .finally(() => {
@@ -149,7 +149,7 @@ export default function EvacuationRoute({ selectedVillage }) {
       });
 
     return () => { cancelled = true; };
-  }, [selectedVillage?.id]);
+  }, [selectedVillage?.id, selectedVillage?._ts]);
 
   if (!selectedVillage || !routeCoords || routeCoords.length === 0) {
     return null;

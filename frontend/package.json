@@ -12,6 +12,7 @@
     "vite": "^8.2.0"
   },
   "dependencies": {
+    "@luomus/leaflet-smooth-wheel-zoom": "^1.0.0",
     "@tailwindcss/vite": "^4.3.3",
     "axios": "^1.19.0",
     "leaflet": "^1.9.4",
